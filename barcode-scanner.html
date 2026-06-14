@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Barcode Scanner Pro</title>
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <style>
+    :root {
+      --primary: #2563eb;
+      --success: #16a34a;
+      --warning: #ea580c;
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --text: #1e293b;
+      --border: #e2e8f0;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 500px;
+    }
+
+    /* ========== STEP 1: SCANNER VIEW ========== */
+    .step-scanner {
+      display: none;
+    }
+
+    .scanner-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      padding: 0 8px;
+    }
+
+    .scanner-header button {
+      background: none;
+      border: none;
+      color: var(--primary);
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      padding: 8px;
+    }
+
+    .scanner-title {
+      font-size: 18px;
+      font-weight: 600;
+      text-align: center;
+      flex: 1;
+    }
+
+    .scanner-controls {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      margin-top: 12px;
+    }
+
+    .icon-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: none;
+      background: var(--primary);
+      color: white;
+      cursor: pointer;
+      font-size: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+    }
+
+    .icon-btn:hover {
+      background: #1d4ed8;
+    }
+
+    #reader {
+      width: 100%;
+      border-radius: 12px;
+      overflow: hidden;
+      background: #000;
+      aspect-ratio: 1;
+    }
+
+    /* ========== STEP 2: CONFIRMATION DIALOG ========== */
+    .step-confirm {
+      display: none;
+    }
+
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: flex-end;
+      z-index: 1000;
+    }
+
+    .modal-content {
+      background: var(--card);
+      width: 100%;
+      border-radius: 16px 16px 0 0;
+      padding: 24px;
+      animation: slideUp 0.3s ease-out;
+    }
+
+    @keyframes slideUp {
+      from {
+        transform: translateY(100%);
+      }
+      to {
+        transform: translateY(0);
+      }
+    }
+
+    .barcode-preview {
+      width: 100%;
+      height: 240px;
+      background: var(--bg);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+
+    .barcode-preview canvas {
+      max-width: 100%;
+      max-height: 100%;
+    }
+
+    .barcode-text {
+      text-align: center;
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 20px;
+    }
+
+    .prompt-text {
+      text-align: center;
+      font-size: 16px;
+      color: #64748b;
+      margin-bottom: 24px;
+    }
+
+    .custom-data-section {
+      background: var(--bg);
+      padding: 16px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      display: none;
+    }
+
+    .form-group {
+      margin-bottom: 12px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 6px;
+      color: var(--text);
+    }
+
+    .form-group input,
+    .form-group textarea {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 14px;
+      color: var(--text);
+    }
+
+    .form-group textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    .button-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .btn {
+      padding: 12px 20px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-secondary {
+      background: #e2e8f0;
+      color: var(--text);
+    }
+
+    .btn-secondary:hover {
+      background: #cbd5e1;
+    }
+
+    .btn-primary {
+      background: #a3e635;
+      color: #1e293b;
+    }
+
+    .btn-primary:hover {
+      background: #9adf67;
+    }
+
+    /* ========== STEP 3: SUCCESS / HISTORY VIEW ========== */
+    .step-success {
+      display: none;
+    }
+
+    .success-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding: 0 8px;
+    }
+
+    .success-title {
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .success-card {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    .stop-indicator {
+      font-size: 14px;
+      color: #64748b;
+      margin-bottom: 16px;
+    }
+
+    .delivery-header {
+      display: flex;
+      align-items: flex-start;
+      margin-bottom: 16px;
+      gap: 12px;
+    }
+
+    .delivery-icon {
+      font-size: 20px;
+    }
+
+    .delivery-info {
+      flex: 1;
+    }
+
+    .delivery-type {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .delivery-address {
+      font-size: 13px;
+      color: #64748b;
+      margin-top: 4px;
+    }
+
+    .delivery-meta {
+      display: flex;
+      gap: 16px;
+      margin-top: 4px;
+      font-size: 13px;
+      color: #64748b;
+    }
+
+    .delivery-meta span {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .section {
+      margin-top: 20px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+    }
+
+    .section-title {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: #94a3b8;
+      margin-bottom: 12px;
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 14px;
+      margin-bottom: 8px;
+    }
+
+    .info-label {
+      color: #64748b;
+    }
+
+    .info-value {
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .tap-indicator {
+      position: absolute;
+      bottom: 30px;
+      right: 30px;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        opacity: 1;
+      }
+      50% {
+        opacity: 0.6;
+      }
+    }
+
+    .history-card {
+      background: var(--bg);
+      border-radius: 8px;
+      padding: 12px;
+      margin-top: 12px;
+      font-size: 13px;
+      border-left: 3px solid var(--primary);
+    }
+
+    .history-card .vin {
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .history-card .timestamp {
+      color: #64748b;
+      margin-top: 4px;
+    }
+
+    .btn-scan-again {
+      width: 100%;
+      margin-top: 20px;
+      background: var(--primary);
+      color: white;
+    }
+
+    .btn-scan-again:hover {
+      background: #1d4ed8;
+    }
+
+    /* Loading state */
+    .loading {
+      display: inline-block;
+      width: 4px;
+      height: 4px;
+      background: currentColor;
+      border-radius: 50%;
+      animation: blink 1.4s infinite;
+    }
+
+    .loading:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+
+    .loading:nth-child(3) {
+      animation-delay: 0.4s;
+    }
+
+    @keyframes blink {
+      0%, 60%, 100% {
+        opacity: 0;
+      }
+      30% {
+        opacity: 1;
+      }
+    }
+
+    .error-message {
+      background: #fee2e2;
+      color: #991b1b;
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 16px;
+      font-size: 14px;
+      border-left: 3px solid #dc2626;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- STEP 1: SCANNER -->
+    <div class="step-scanner" id="stepScanner">
+      <div class="scanner-header">
+        <button id="closeBtn">Close</button>
+        <span class="scanner-title">Scan Barcode</span>
+        <div style="width: 40px;"></div>
+      </div>
+      <div id="reader"></div>
+      <div class="scanner-controls">
+        <button class="icon-btn" id="torchBtn" title="Toggle torch">💡</button>
+        <button class="icon-btn" id="galleryBtn" title="Upload from gallery">🖼️</button>
+      </div>
+    </div>
+
+    <!-- STEP 2: CONFIRMATION -->
+    <div class="step-confirm" id="stepConfirm">
+      <div class="modal-overlay">
+        <div class="modal-content">
+          <div class="barcode-preview">
+            <canvas id="barcodeCanvas"></canvas>
+          </div>
+          <div class="barcode-text">
+            Barcode <span id="confirmBarcodeText"></span>
+          </div>
+          <div class="prompt-text">Add custom data?</div>
+
+          <div class="custom-data-section" id="customDataForm">
+            <div class="form-group">
+              <label>Destination (optional)</label>
+              <input type="text" id="destinationInput" placeholder="e.g., 123 Main St, NY 10001">
+            </div>
+            <div class="form-group">
+              <label>Notes (optional)</label>
+              <textarea id="notesInput" placeholder="Add any additional information..."></textarea>
+            </div>
+          </div>
+
+          <div class="button-group">
+            <button class="btn btn-secondary" id="cancelBtn">CANCEL</button>
+            <button class="btn btn-primary" id="submitBtn">OK</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 3: SUCCESS / HISTORY -->
+    <div class="step-success" id="stepSuccess">
+      <div class="success-header">
+        <span class="success-title">Destination Info</span>
+        <button class="scanner-header button" id="closeSuccessBtn">Close</button>
+      </div>
+
+      <div class="success-card" style="position: relative;">
+        <div class="error-message" id="errorMessage" style="display: none;"></div>
+
+        <div class="stop-indicator">Stop <span id="stopCount">1</span> of 15</div>
+
+        <div class="delivery-header">
+          <div class="delivery-icon">📦</div>
+          <div class="delivery-info">
+            <div class="delivery-type" id="deliveryType">Daily Delivery</div>
+            <div class="delivery-address" id="deliveryAddress">222 E 34th St, New York, NY 10016, USA</div>
+            <div class="delivery-meta">
+              <span>🚚 DELIVERY</span>
+              <span id="deliveryCount">1</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">ORDER</div>
+          <div class="info-row">
+            <span class="info-label">Pieces:</span>
+            <span class="info-value" id="orderPieces">10</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Revenue:</span>
+            <span class="info-value" id="orderRevenue">500</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Weight:</span>
+            <span class="info-value" id="orderWeight">30</span>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">TIME</div>
+          <div class="info-row">
+            <span class="info-label">Planned Arrival:</span>
+            <span class="info-value" id="plannedArrival">10/10/2023, 5:01 PM</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Predicted Arrival:</span>
+            <span class="info-value" id="predictedArrival">10/10/2023, 5:01 PM</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Planned Departure:</span>
+            <span class="info-value" id="plannedDeparture">10/10/2023, 5:06 PM</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Predicted Departure:</span>
+            <span class="info-value" id="predictedDeparture">10/10/2023, 5:06 PM</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Visit Duration:</span>
+            <span class="info-value" id="visitDuration">5 min</span>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">CUSTOM DATA</div>
+          <div class="info-row">
+            <span class="info-label">load_assist_id:</span>
+            <span class="info-value" id="customLoadAssistId">-</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">scanned_label_1:</span>
+            <span class="info-value" id="customScannedLabel">Barcode 0001</span>
+          </div>
+        </div>
+
+        <div class="tap-indicator" id="tapIndicator">
+          👆
+        </div>
+      </div>
+
+      <div id="historySection" style="margin-top: 20px;"></div>
+
+      <button class="btn btn-scan-again" id="scanAgainBtn">Scan Another Package</button>
+    </div>
+  </div>
+
+  <script>
+    // ========== CONFIGURATION ==========
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwFiuztGDMkzTjWU4QibcreMlMz-VL6hY3kgRLGM2czxwHnSrujbEXVQ-RjftFF7EMQGg/exec";
+    const BARCODE_GENERATOR = "https://barcode.tec-it.com/barcode.ashx";
+
+    // ========== STATE ==========
+    let currentBarcode = null;
+    let scanHistory = [];
+    const html5QrCode = new Html5Qrcode("reader");
+    let torchEnabled = false;
+
+    // ========== UI HELPERS ==========
+    function showStep(stepName) {
+      document.getElementById("stepScanner").style.display = "none";
+      document.getElementById("stepConfirm").style.display = "none";
+      document.getElementById("stepSuccess").style.display = "none";
+      document.getElementById(stepName).style.display = "block";
+    }
+
+    function generateBarcode(text) {
+      return new Promise((resolve) => {
+        const canvas = document.getElementById("barcodeCanvas");
+        const ctx = canvas.getContext("2d");
+        canvas.width = 300;
+        canvas.height = 100;
+
+        // Simplified barcode rendering
+        ctx.fillStyle = "white";
+        ctx.fillRect(0, 0, 300, 100);
+        ctx.fillStyle = "black";
+        ctx.font = "24px monospace";
+
+        const barWidth = 2;
+        let x = 10;
+        // Create pattern based on text
+        for (let i = 0; i < text.length; i++) {
+          const char = text.charCodeAt(i);
+          for (let j = 0; j < 8; j++) {
+            if (char & (1 << j)) {
+              ctx.fillRect(x, 10, barWidth, 60);
+            }
+            x += barWidth + 1;
+          }
+        }
+
+        ctx.fillStyle = "black";
+        ctx.textAlign = "center";
+        ctx.fillText(text, 150, 85);
+        resolve();
+      });
+    }
+
+    async function submitBarcode() {
+      const destination = document.getElementById("destinationInput").value;
+      const notes = document.getElementById("notesInput").value;
+
+      try {
+        const response = await fetch(WEB_APP_URL, {
+          method: "POST",
+          mode: "cors",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "SUBMIT_VIN",
+            vin: currentBarcode,
+            destination: destination,
+            notes: notes,
+            timestamp: new Date().toISOString()
+          })
+        });
+
+        const result = await response.json();
+
+        if (result.status === "success") {
+          // Check for existing history
+          await checkBarcodeHistory(currentBarcode);
+          showStep("stepSuccess");
+        } else {
+          showError(result.message || "Submission failed");
+        }
+      } catch (error) {
+        console.error("Submission error:", error);
+        showError("Network error. Please try again.");
+      }
+    }
+
+    async function checkBarcodeHistory(barcode) {
+      try {
+        const response = await fetch(WEB_APP_URL, {
+          method: "POST",
+          mode: "cors",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "GET_VIN_HISTORY",
+            vin: barcode
+          })
+        });
+
+        const history = await response.json();
+
+        if (history && history.length > 0) {
+          displayHistory(history);
+        }
+      } catch (error) {
+        console.error("History fetch error:", error);
+      }
+    }
+
+    function displayHistory(history) {
+      const historySection = document.getElementById("historySection");
+      historySection.innerHTML = "<div class='section-title'>Previous Scans</div>";
+
+      history.forEach((record) => {
+        const card = document.createElement("div");
+        card.className = "history-card";
+        const date = new Date(record.timestamp).toLocaleString();
+        card.innerHTML = `
+          <div class="vin">${record.vin}</div>
+          <div class="timestamp">${date}</div>
+          ${record.destination ? `<div class="timestamp">📍 ${record.destination}</div>` : ""}
+          ${record.notes ? `<div class="timestamp">📝 ${record.notes}</div>` : ""}
+        `;
+        historySection.appendChild(card);
+      });
+    }
+
+    function showError(message) {
+      const errorDiv = document.getElementById("errorMessage");
+      errorDiv.textContent = message;
+      errorDiv.style.display = "block";
+      setTimeout(() => {
+        errorDiv.style.display = "none";
+      }, 5000);
+    }
+
+    // ========== BARCODE SCANNING ==========
+    async function startScanner() {
+      try {
+        await html5QrCode.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: 250 },
+          async (decodedText) => {
+            currentBarcode = decodedText;
+            await html5QrCode.pause();
+            await generateBarcode(decodedText);
+            document.getElementById("confirmBarcodeText").textContent = decodedText;
+            showStep("stepConfirm");
+          }
+        );
+        showStep("stepScanner");
+      } catch (error) {
+        console.error("Scanner error:", error);
+      }
+    }
+
+    // ========== EVENT LISTENERS ==========
+    document.getElementById("closeBtn").addEventListener("click", () => {
+      html5QrCode.stop();
+    });
+
+    document.getElementById("cancelBtn").addEventListener("click", async () => {
+      document.getElementById("destinationInput").value = "";
+      document.getElementById("notesInput").value = "";
+      currentBarcode = null;
+      await html5QrCode.resume();
+      showStep("stepScanner");
+    });
+
+    document.getElementById("submitBtn").addEventListener("click", submitBarcode);
+
+    document.getElementById("closeSuccessBtn").addEventListener("click", () => {
+      html5QrCode.stop();
+    });
+
+    document.getElementById("scanAgainBtn").addEventListener("click", async () => {
+      document.getElementById("destinationInput").value = "";
+      document.getElementById("notesInput").value = "";
+      document.getElementById("errorMessage").style.display = "none";
+      currentBarcode = null;
+      await html5QrCode.resume();
+      showStep("stepScanner");
+    });
+
+    // Torch toggle
+    document.getElementById("torchBtn").addEventListener("click", async () => {
+      try {
+        torchEnabled = !torchEnabled;
+        await html5QrCode.applyConstraints({
+          advanced: [{ torch: torchEnabled }]
+        });
+        document.getElementById("torchBtn").style.opacity = torchEnabled ? "1" : "0.5";
+      } catch (error) {
+        console.error("Torch error:", error);
+      }
+    });
+
+    // Initialize
+    startScanner();
+  </script>
+</body>
+</html>
