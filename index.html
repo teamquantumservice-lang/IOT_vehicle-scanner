@@ -1,51 +1,100 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Vehicle Scanner</title>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <style>
-    body { font-family: sans-serif; padding: 20px; background: #f4f7f6; text-align: center; }
-    #reader { width: 100%; max-width: 400px; margin: auto; background: white; border: 1px solid #ccc; }
-    .card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-top: 20px; text-align: left; }
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
-    th, td { padding: 8px; border-bottom: 1px solid #ddd; }
+    :root {
+      --primary: #2563eb;
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --text: #1e293b;
+    }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+      padding: 16px; 
+      background: var(--bg); 
+      color: var(--text);
+      margin: 0;
+    }
+    h2 { text-align: center; margin-bottom: 20px; color: var(--primary); }
+    
+    #reader { 
+      width: 100%; 
+      max-width: 500px; 
+      margin: 0 auto; 
+      background: #000; 
+      border-radius: 12px; 
+      overflow: hidden;
+    }
+    
+    .card { 
+      background: var(--card); 
+      padding: 20px; 
+      border-radius: 12px; 
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); 
+      margin-top: 20px; 
+      max-width: 500px; 
+      margin-left: auto; 
+      margin-right: auto;
+    }
+    
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th { text-align: left; color: #64748b; font-size: 0.85rem; padding-bottom: 10px; }
+    td { padding: 12px 0; border-top: 1px solid #f1f5f9; font-size: 0.95rem; }
+    
+    .status-pill {
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .pending { background: #fef3c7; color: #92400e; }
+    .completed { background: #dcfce7; color: #166534; }
+    .failed { background: #fee2e2; color: #991b1b; }
   </style>
 </head>
 <body>
-  <h2>Vehicle Scanner</h2>
+
+  <h2>Scanner Pro</h2>
   <div id="reader"></div>
   
   <div class="card">
     <h3>Today's Activity</h3>
     <table>
-      <thead><tr><th>VIN</th><th>Status</th></tr></thead>
-      <tbody id="dashBody"></tbody>
+      <thead>
+        <tr><th>VIN</th><th>Status</th></tr>
+      </thead>
+      <tbody id="dashBody">
+        </tbody>
     </table>
   </div>
 
   <script>
-    // REPLACE THIS URL WITH YOUR NEW WEB APP URL
-    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwFiuztGDMkzTjWU4QibcreMlMz-VL6hY3kgRLGM2czxwHnSrujbEXVQ-RjftFF7EMQGg/exec";
+    // --- CONFIGURATION ---
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwFiuztGDMkzTjWU4QibcreMlMz-VL6hY3kgRLGM2czxwHnSrujbEXVQ-RjftFF7EMQGg/exec"; 
+    // ---------------------
 
     const html5QrCode = new Html5Qrcode("reader");
     
-    // Start camera with proper environment settings
     html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, 
       (decodedText) => {
-        // Send to Sheet
+        // Submit Scan
         fetch(WEB_APP_URL, {
           method: "POST",
           mode: "cors",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: "SUBMIT_VIN", vin: decodedText })
         }).then(() => {
-          updateDashboard(); // Refresh immediately
+          updateDashboard();
         });
-        html5QrCode.pause(); // Pause to prevent duplicate scans
-        alert("Scanned: " + decodedText);
-        setTimeout(() => html5QrCode.resume(), 2000); // Resume after 2 seconds
+        
+        // Brief pause to avoid spamming scans
+        html5QrCode.pause();
+        setTimeout(() => html5QrCode.resume(), 2000);
       });
 
     async function updateDashboard() {
@@ -57,10 +106,16 @@
           body: JSON.stringify({ action: "GET_DASHBOARD" })
         });
         const data = await response.json();
-        document.getElementById('dashBody').innerHTML = data.map(row => 
-          `<tr><td>${row[0]}</td><td>${row[1]}</td></tr>`).join('');
+        
+        const body = document.getElementById('dashBody');
+        body.innerHTML = data.map(row => `
+          <tr>
+            <td>${row[0]}</td>
+            <td><span class="status-pill ${row[1].toLowerCase()}">${row[1]}</span></td>
+          </tr>
+        `).join('');
       } catch (e) {
-        console.error("Dashboard update failed", e);
+        console.error("Dashboard update failed");
       }
     }
     
